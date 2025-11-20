@@ -1,0 +1,5 @@
+{
+  "name": "Life-OS: Autonomous Goal Planner",
+  "description": "An AI-powered system that turns any long-term human goal into an adaptive, daily executable plan. It researches, strategizes, and schedules your path to success.",
+  "requestFramePermissions": []
+}
