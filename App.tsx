@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
 import GoalIntake from './components/GoalIntake';
@@ -15,55 +16,55 @@ import { View, Plan } from './types';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { MOCK_PLAN } from './mockData';
 
-const AppContent: React.FC = () => {
+const AppRoutes: React.FC = () => {
     const { user, userProfile, activeGoal, activateGoal, loading } = useAuth();
-    const [currentView, setCurrentView] = useState<View>('goal-detail');
+    const navigate = useNavigate();
+    const location = useLocation();
     const [currentPlan, setCurrentPlan] = useState<Plan | null>(MOCK_PLAN);
-    // Mock initial state: empty array for new user, populated for existing
-    // const [activeGoals, setActiveGoals] = useState<any[]>([]); // Removed as per instruction
 
-    // Effect to handle auth state changes
-    useEffect(() => {
-        if (!loading) {
-            if (user) {
-                // If user is logged in and currently on public pages, redirect to dashboard
-                // if (['landing', 'auth', 'pricing'].includes(currentView)) {
-                //     setCurrentView('dashboard');
-                // }
-            } else {
-                // If user is logged out and on private pages, redirect to landing
-                // if (!['landing', 'auth', 'pricing'].includes(currentView)) {
-                //     setCurrentView('landing');
-                // }
-            }
-        }
-    }, [user, loading]); // Remove currentView from dependency to avoid loops
-
-    // Navigation Handlers
+    // Navigation Handler Adapter for existing components
     const handleNavigate = (view: View) => {
-        setCurrentView(view);
+        switch (view) {
+            case 'landing': navigate('/'); break;
+            case 'auth': navigate('/auth'); break;
+            case 'pricing': navigate('/pricing'); break;
+            case 'dashboard': navigate('/dashboard'); break;
+            case 'goal-intake': navigate('/goal-intake'); break;
+            case 'goal-detail': navigate('/goal-detail'); break;
+            default: navigate('/');
+        }
         window.scrollTo(0, 0);
     };
 
-    // handleLoginSuccess removed as per instruction
+    // Effect to handle auth state changes and redirects
+    useEffect(() => {
+        if (!loading) {
+            const publicPaths = ['/', '/auth', '/pricing'];
+            const isPublic = publicPaths.includes(location.pathname);
+
+            if (user) {
+                // If user is logged in and currently on public pages, redirect to dashboard
+                if (isPublic) {
+                    navigate('/dashboard');
+                }
+            } else {
+                // If user is logged out and on private pages, redirect to landing
+                if (!isPublic) {
+                    navigate('/');
+                }
+            }
+        }
+    }, [user, loading, location.pathname, navigate]);
 
     const handlePlanGenerated = (plan: Plan) => {
         setCurrentPlan(plan);
-        // Add a dummy goal to activeGoals to simulate goal creation // Removed as per instruction
-        // setActiveGoals(prev => [...prev, { // Removed as per instruction
-        //     id: Date.now(), // Removed as per instruction
-        //     title: plan.goalTitle, // Removed as per instruction
-        //     progress: 0, // Removed as per instruction
-        //     nextTask: "Initialize Plan", // Removed as per instruction
-        //     due: "TBD" // Removed as per instruction
-        // }]); // Removed as per instruction
-        setCurrentView('goal-detail');
+        navigate('/goal-detail');
     };
 
     const handleActivatePlan = async () => {
         if (currentPlan) {
             await activateGoal(currentPlan);
-            handleNavigate('dashboard');
+            navigate('/dashboard');
         }
     };
 
@@ -78,33 +79,34 @@ const AppContent: React.FC = () => {
                 <OnboardingModal />
             )}
 
-            {currentView === 'landing' && <LandingPage onNavigate={handleNavigate} />}
+            <Routes>
+                <Route path="/" element={<LandingPage onNavigate={handleNavigate} />} />
+                <Route path="/auth" element={<Auth onNavigate={handleNavigate} />} />
+                <Route path="/pricing" element={<Pricing onNavigate={handleNavigate} />} />
 
-            {currentView === 'auth' && <Auth onNavigate={handleNavigate} />}
+                <Route path="/dashboard" element={
+                    activeGoal === null ? (
+                        <CreateGoal onNavigate={handleNavigate} />
+                    ) : (
+                        <Dashboard onNavigate={handleNavigate} activeGoals={activeGoal ? [activeGoal] : []} />
+                    )
+                } />
 
-            {currentView === 'pricing' && <Pricing onNavigate={handleNavigate} />}
+                <Route path="/goal-intake" element={
+                    <GoalIntake onNavigate={handleNavigate} onPlanGenerated={handlePlanGenerated} />
+                } />
 
-            {currentView === 'dashboard' && (
-                activeGoal === null ? ( // Changed from activeGoals.length === 0
-                    <CreateGoal onNavigate={handleNavigate} />
-                ) : (
-                    <Dashboard onNavigate={handleNavigate} activeGoals={activeGoal ? [activeGoal] : []} />
-                )
-            )}
+                <Route path="/goal-detail" element={
+                    currentPlan ? (
+                        <GoalDetail plan={currentPlan} onNavigate={handleNavigate} onActivate={handleActivatePlan} />
+                    ) : (
+                        <Navigate to="/dashboard" />
+                    )
+                } />
 
-            {currentView === 'goal-detail' && currentPlan && (
-                <GoalDetail plan={currentPlan} onNavigate={handleNavigate} onActivate={handleActivatePlan} />
-            )}
-
-            {/* Fallback if detail is accessed without state */}
-            {currentView === 'goal-detail' && !currentPlan && (
-                <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-center">
-                        <p className="text-zinc-500 mb-4">No active plan loaded.</p>
-                        <button onClick={() => handleNavigate('dashboard')} className="text-[#5100fd]">Return to Dashboard</button>
-                    </div>
-                </div>
-            )}
+                {/* Catch-all redirect */}
+                <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
         </>
     );
 };
@@ -112,7 +114,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
     return (
         <AuthProvider>
-            <AppContent />
+            <Router>
+                <AppRoutes />
+            </Router>
         </AuthProvider>
     );
 };
