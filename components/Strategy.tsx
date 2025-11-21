@@ -1,20 +1,28 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './Navbar';
-import { View } from '../types';
+import { View, Plan } from '../types';
 import { Button } from './ui/button';
 import { BarChart3, Clock, Zap } from 'lucide-react';
 
 interface StrategyProps {
     onNavigate: (view: View) => void;
+    plan?: Plan | null;
 }
 
-export default function Strategy({ onNavigate }: StrategyProps) {
-    const [milestones, setMilestones] = useState([
-        { id: 1, title: "MVP Development", hours: 40, feasibility: 95 },
-        { id: 2, title: "Beta User Acquisition", hours: 25, feasibility: 80 },
-        { id: 3, title: "Public Launch", hours: 15, feasibility: 90 },
-    ]);
+export default function Strategy({ onNavigate, plan }: StrategyProps) {
+    const [milestones, setMilestones] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (plan) {
+            setMilestones(plan.milestones.map(m => ({
+                id: m.id,
+                title: m.title,
+                hours: m.estimatedHours,
+                feasibility: 90 // Mock feasibility per milestone for now
+            })));
+        }
+    }, [plan]);
 
     const [simulating, setSimulating] = useState(false);
 
@@ -39,7 +47,7 @@ export default function Strategy({ onNavigate }: StrategyProps) {
                         <h1 className="text-3xl md:text-4xl font-light text-white mb-2">Strategy Lab</h1>
                         <p className="text-zinc-400">Fine-tune your milestones. The Strategist Agent will recalculate feasibility.</p>
                     </div>
-                    <Button 
+                    <Button
                         onClick={runSimulation}
                         className="bg-white text-black hover:bg-zinc-200 gap-2"
                         disabled={simulating}
@@ -64,7 +72,7 @@ export default function Strategy({ onNavigate }: StrategyProps) {
                                         {m.feasibility}% Feasible
                                     </div>
                                 </div>
-                                
+
                                 <div className="bg-black rounded-xl p-4 flex items-center justify-between border border-zinc-800/50">
                                     <div className="flex items-center gap-2 text-zinc-400">
                                         <Clock className="w-4 h-4" />
@@ -87,7 +95,7 @@ export default function Strategy({ onNavigate }: StrategyProps) {
                                 <BarChart3 className="w-5 h-5 text-[#5100fd]" />
                                 Impact Analysis
                             </h3>
-                            
+
                             <div className="space-y-6">
                                 <div>
                                     <div className="flex justify-between text-sm mb-2">

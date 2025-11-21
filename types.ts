@@ -22,7 +22,7 @@ export interface Plan {
   milestones: Milestone[];
 }
 
-export type AgentName = 'Researcher Agent' | 'Strategist Agent' | 'Referee Agent' | 'Planner Agent';
+export type AgentName = 'Interviewer' | 'Deep Research Agent' | 'Researcher Agent' | 'Strategist Agent' | 'Referee Agent' | 'Planner Agent';
 
 export interface AgentStatus {
   name: AgentName;
@@ -43,6 +43,8 @@ export interface ResearchContext {
   experienceLevel?: string;
   budget?: string;
   timeline?: string;
+  userTier?: 'Free' | 'Pro';
+  userProfile?: UserProfile;
 }
 
 // Blackboard Data Structures
@@ -51,6 +53,8 @@ export interface ResearchResult {
   potentialRisks: string[];
   recommendedResources: string[];
   marketAnalysis: string;
+  report?: string;
+  initialStrategy?: any;
 }
 
 export interface StrategyResult {
@@ -65,3 +69,12 @@ export interface RefereeResult {
 }
 
 export type View = 'landing' | 'auth' | 'pricing' | 'dashboard' | 'goal-intake' | 'goal-detail' | 'feedback' | 'strategy' | 'planner' | 'settings';
+
+export interface UserProfile {
+  uid: string;
+  displayName: string;
+  age: string;
+  occupation: string;
+  email: string;
+  onboardingCompleted: boolean;
+}

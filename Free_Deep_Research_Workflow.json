@@ -1,0 +1,287 @@
+                380,
+                480
+            ],
+            "position": [
+                600,
+                480
+            ],
+            "typeVersion": 1.5
+        },
+        {
+            "parameters": {
+                "model": "google/gemini-2.0-flash-001",
+                "options": {}
+            },
+            "id": "llm-model",
+            "name": "Google Gemini 2.0 Flash",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+            "position": [
+                680,
+                700
+            ],
+            "typeVersion": 1,
+            "credentials": {
+                "openRouterApi": {
+                    "url": "https://google.serper.dev/search",
+                    "sendHeaders": true,
+                    "headerParameters": {
+                        "parameters": [
+                            {
+                                "name": "X-API-KEY",
+                                "value": "={{ $credentials.SerperApi.apiKey }}"
+                            },
+                            {
+                                "name": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ]
+                    },
+                    "sendBody": true,
+                    "bodyParameters": {
+                        "parameters": [
+                            {
+                                "name": "q",
+                                "value": "={{ $json.query }}"
+                            }
+                        ]
+                    },
+                    "options": {}
+                },
+                "id": "serper-request",
+                "name": "Google_ai_mode search",
+                "type": "n8n-nodes-base.httpRequest",
+                "position": [
+                    1180,
+                    1400,
+                    480
+                ],
+                "typeVersion": 2
+            },
+            {
+                "parameters": {
+                    "url": "={{ $json.url }}",
+                    "options": {
+                        "response": {
+                            "response": {
+                                "responseFormat": "text"
+                            }
+                        }
+                    }
+                },
+                "id": "scrape-html",
+                "name": "Scrape Webpage",
+                "type": "n8n-nodes-base.httpRequest",
+                "position": [
+                    1620,
+                    480
+                ],
+                "typeVersion": 4.2,
+                "onError": "continueRegularOutput"
+            },
+            {
+                "parameters": {
+                    "operation": "extractHtmlContent",
+                    "dataPropertyName": "webpage_content",
+                    "extractionValues": {
+                        "values": [
+                            {
+                                "key": "text",
+                                "cssSelector": "body",
+                                "returnArray": false,
+                                "htmlEntityDecode": true
+                            }
+                        ]
+                    },
+                    "options": {
+                        "trimValues": true
+                    }
+                },
+                "id": "extract-text",
+                "name": "Extract Text",
+                "type": "n8n-nodes-base.html",
+                "position": [
+                    1840,
+                    480
+                ],
+                "typeVersion": 1.2
+            },
+            {
+                "parameters": {
+                    "promptType": "define",
+                    "text": "=Webpage Content:\n{{ $json.webpage_content.text.slice(0, 15000) }}\n\nUser Goal:\n{{ $('Chat Message Trigger').item.json.body.goal }}\n\nExtract specific, official data relevant to the goal (e.g., Syllabi, Exam Patterns, Prerequisites, Deadlines). Ignore generic info.",
+                    "options": {
+                        "systemMessage": "You are a data extraction specialist. Return a concise summary of the OFFICIAL facts found."
+                    }
+                },
+                "id": "extract-info",
+                "name": "Extract Info",
+                "type": "@n8n/n8n-nodes-langchain.chainLlm",
+                "position": [
+                    2060,
+                    480
+                ],
+                "typeVersion": 1.5
+            },
+            {
+                "parameters": {
+                    "promptType": "define",
+                    "text": "=All Gathered Info:\n{{ $('Extract Info').all().map(i => i.json.output).join('\\n\\n') }}\n\nGenerate a comprehensive Markdown report.",
+                    "options": {
+                        "systemMessage": "You are a research analyst. Write a detailed report in Markdown."
+                    }
+                },
+                "id": "write-report",
+                "name": "Write Report",
+                "type": "@n8n/n8n-nodes-langchain.agent",
+                "position": [
+                    2280,
+                    480
+                ],
+                "typeVersion": 1.7
+            },
+            {
+                "parameters": {
+                    "promptType": "define",
+                    "text": "=Research Report:\n{{ $json.output }}\n\nRaw Extracted Data:\n{{ $('Extract Info').all().map(i => i.json.output).join('\\n\\n') }}\n\nUser Goal:\n{{ $('Chat Message Trigger').item.json.body.goal }}\n\nSearch Queries Used:\n{{ $('Generate Search Queries').all().map(i => i.json.query).join(', ') }}\n\nACT AS A SYNTHESIZER.\nYour goal is to take the Research Report and Raw Data and synthesize a Concrete Execution Plan.\n\nReturn a JSON object with this EXACT structure:\n{\n  \"report\": \"<The full markdown report>\",\n  \"research_data\": \"<Concise summary of raw facts/syllabi found>\",\n  \"strategy\": {\n    \"strategyRationale\": \"<Why this approach?>\",\n    \"milestones\": [\n      {\n        \"id\": \"m-1\",\n        \"title\": \"<Milestone Title>\",\n        \"kpi\": \"<Success Metric>\",\n        \"estimatedHours\": <number>,\n        \"tasks\": [\n          {\n            \"id\": \"t-1-1\",\n            \"title\": \"<Task Title>\",\n            \"description\": \"<Actionable Description>\",\n            \"durationMinutes\": <number>\n          }\n        ]\n      }\n    ]\n  }\n}",
+                    "options": {
+                        "systemMessage": "You are a Master Planner. You output structured JSON with Milestones and Tasks."
+                    }
+                },
+                "id": "synthesizer-agent",
+                "name": "Synthesizer Agent",
+                "type": "@n8n/n8n-nodes-langchain.agent",
+                "position": [
+                    2500,
+                    480
+                ],
+                "typeVersion": 1.7
+            }
+        ],
+        "connections": {
+            "Chat Message Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": "Generate Search Queries",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Google Gemini 2.0 Flash": {
+                "ai_languageModel": [
+                    [
+                        {
+                            "node": "Generate Search Queries",
+                            "type": "ai_languageModel",
+                            "index": 0
+                        },
+                        {
+                            "node": "Extract Info",
+                            "type": "ai_languageModel",
+                            "index": 0
+                        },
+                        {
+                            "node": "Write Report",
+                            "type": "ai_languageModel",
+                            "index": 0
+                        },
+                        {
+                            "node": "Synthesizer Agent",
+                            "type": "ai_languageModel",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Generate Search Queries": {
+                "main": [
+                    [
+                        {
+                            "node": "Parse Queries",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Parse Queries": {
+                "main": [
+                    [
+                        {
+                            "node": "Google_ai_mode search",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Google_ai_mode search": {
+                "main": [
+                    [
+                        {
+                            "node": "Format Results",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Format Results": {
+                "main": [
+                    [
+                        {
+                            "node": "Scrape Webpage",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Scrape Webpage": {
+                "main": [
+                    [
+                        {
+                            "node": "Extract Text",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Extract Text": {
+                "main": [
+                    [
+                        {
+                            "node": "Extract Info",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Extract Info": {
+                "main": [
+                    [
+                        {
+                            "node": "Write Report",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Write Report": {
+                "main": [
+                    [
+                        {
+                            "node": "Synthesizer Agent",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        }
+    }

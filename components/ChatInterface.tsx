@@ -1,20 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, User, Bot, Sparkles } from 'lucide-react';
-import { Message, ResearchContext } from '../types';
+import { Message, ResearchContext, UserProfile } from '../types';
 import { runInterviewer } from '../services/geminiService';
 import { cn } from '../lib/utils';
 
 interface ChatInterfaceProps {
     onComplete: (context: ResearchContext) => void;
+    userProfile?: UserProfile | null;
 }
 
-export function ChatInterface({ onComplete }: ChatInterfaceProps) {
-    const [messages, setMessages] = useState<Message[]>([
-        { role: 'assistant', content: "Hi! I'm your AI Goal Analyst. Tell me, what big objective do you want to achieve?" }
-    ]);
+export function ChatInterface({ onComplete, userProfile }: ChatInterfaceProps) {
+    const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        // Initialize personalized greeting
+        const greeting = userProfile
+            ? `Hi ${userProfile.displayName}! I see you're a ${userProfile.occupation}. What big objective do you want to achieve?`
+            : "Hi! I'm your AI Goal Analyst. Tell me, what big objective do you want to achieve?";
+
+        setMessages([{ role: 'assistant', content: greeting }]);
+    }, [userProfile]);
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -36,7 +44,7 @@ export function ChatInterface({ onComplete }: ChatInterfaceProps) {
             // The service signature is `runInterviewer(history: Message[], currentInput: string)`
             // So we pass the *previous* history and the *current* input.
 
-            const response = await runInterviewer(messages, userMsg.content);
+            const response = await runInterviewer(messages, userMsg.content, userProfile);
 
             if (response.isComplete && response.context) {
                 setMessages(prev => [...prev, { role: 'assistant', content: "Great! I have everything I need. Starting deep research now..." }]);

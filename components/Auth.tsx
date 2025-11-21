@@ -1,28 +1,43 @@
-
 import React, { useState } from 'react';
 import { LogoIcon } from './icons';
 import { Button } from './ui/button';
+import { useAuth } from '../contexts/AuthContext';
+
 import { View } from '../types';
 
 interface AuthProps {
-    onLogin: () => void;
+    onNavigate: (view: View) => void;
+    onLogin?: () => void;
 }
 
-export default function Auth({ onLogin }: AuthProps) {
+export default function Auth({ onNavigate, onLogin }: AuthProps) {
+    const { signInWithGoogle } = useAuth();
     const [isLogin, setIsLogin] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleGoogleLogin = async () => {
+        try {
+            setError(null);
+            await signInWithGoogle();
+            if (onLogin) onLogin(); // Call parent handler if needed, though App handles redirect via effect
+        } catch (err: any) {
+            console.error("Login failed", err);
+            setError("Failed to sign in with Google. Please try again.");
+        }
+    };
 
     return (
         <div className="min-h-screen w-full flex items-center justify-center bg-black p-4 relative overflow-hidden">
-             {/* Background Ambient */}
+            {/* Background Ambient */}
             <div className="fixed top-[-20%] left-[-10%] w-[800px] h-[800px] bg-purple-900/10 rounded-full blur-[150px]" />
             <div className="fixed bottom-[-20%] right-[-10%] w-[800px] h-[800px] bg-blue-900/10 rounded-full blur-[150px]" />
 
             <div className="w-full max-w-md relative z-10">
                 <div className="bg-zinc-950/50 backdrop-blur-xl border border-zinc-800 rounded-3xl p-8 shadow-2xl">
-                    <div className="flex justify-center mb-8">
+                    <div className="flex justify-center mb-8 cursor-pointer" onClick={() => onNavigate('landing')}>
                         <LogoIcon className="w-12 h-12 text-[#5100fd]" />
                     </div>
-                    
+
                     <h2 className="text-2xl font-semibold text-white text-center mb-2">
                         {isLogin ? 'Welcome back' : 'Create your account'}
                     </h2>
@@ -30,10 +45,16 @@ export default function Auth({ onLogin }: AuthProps) {
                         {isLogin ? 'Enter your credentials to access your Life-OS.' : 'Start autonomously planning your goals today.'}
                     </p>
 
+                    {error && (
+                        <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-sm p-3 rounded-xl mb-4 text-center">
+                            {error}
+                        </div>
+                    )}
+
                     <div className="space-y-4">
-                        <Button 
+                        <Button
                             className="w-full bg-white text-black hover:bg-zinc-200 h-12 rounded-xl font-medium flex items-center justify-center gap-2"
-                            onClick={onLogin}
+                            onClick={handleGoogleLogin}
                         >
                             <svg className="w-5 h-5" viewBox="0 0 24 24">
                                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -54,9 +75,9 @@ export default function Auth({ onLogin }: AuthProps) {
                             <input type="password" placeholder="Password" className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 focus:border-[#5100fd] focus:ring-0 outline-none transition-all" />
                         </div>
 
-                        <Button 
+                        <Button
                             className="w-full bg-[#5100fd] hover:bg-[#6610ff] text-white h-12 rounded-xl font-medium"
-                            onClick={onLogin}
+                            onClick={() => { }} // Placeholder for email login
                         >
                             {isLogin ? 'Sign In' : 'Create Account'}
                         </Button>
@@ -65,7 +86,7 @@ export default function Auth({ onLogin }: AuthProps) {
                     <div className="mt-8 text-center">
                         <p className="text-zinc-500 text-sm">
                             {isLogin ? "Don't have an account? " : "Already have an account? "}
-                            <button 
+                            <button
                                 onClick={() => setIsLogin(!isLogin)}
                                 className="text-white hover:underline underline-offset-4"
                             >
@@ -74,7 +95,7 @@ export default function Auth({ onLogin }: AuthProps) {
                         </p>
                     </div>
                 </div>
-                
+
                 <p className="text-center text-zinc-600 text-xs mt-8 max-w-xs mx-auto">
                     By clicking continue, you agree to our Terms of Service and Privacy Policy. Life-OS treats your goal data as confidential.
                 </p>

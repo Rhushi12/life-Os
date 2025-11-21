@@ -1,9 +1,9 @@
-
 import React, { useEffect, useState } from "react"
 import { LogoIcon } from "./icons"
 import { View } from "../types"
 import { Button } from "./ui/button"
-import { Menu, X } from "lucide-react"
+import { Menu, X, LogOut, Settings as SettingsIcon } from "lucide-react"
+import { useAuth } from "../contexts/AuthContext"
 
 interface NavbarProps {
   onNavigate: (view: View) => void;
@@ -11,6 +11,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ onNavigate, currentView }: NavbarProps) {
+  const { user, logout } = useAuth();
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -29,7 +30,16 @@ export function Navbar({ onNavigate, currentView }: NavbarProps) {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [lastScrollY])
 
-  const isLoggedIn = currentView !== 'landing' && currentView !== 'auth' && currentView !== 'pricing';
+  const isLoggedIn = !!user;
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      onNavigate('landing');
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
+  };
 
   return (
     <>
@@ -67,9 +77,29 @@ export function Navbar({ onNavigate, currentView }: NavbarProps) {
           {/* CTA Buttons & Mobile Toggle */}
           <div className="flex items-center gap-4 shrink-0">
             {isLoggedIn && (
-              <button onClick={() => onNavigate('settings')} className={`text-zinc-400 hover:text-white transition-colors hidden sm:block ${currentView === 'settings' ? 'text-white' : ''}`}>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => onNavigate('settings')}
+                  className="group relative focus:outline-none"
+                  title="Settings"
+                >
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt="Profile" className={`w-8 h-8 rounded-full border transition-all duration-300 ${currentView === 'settings' ? 'border-[#5100fd] shadow-[0_0_10px_rgba(81,0,253,0.5)]' : 'border-zinc-700 group-hover:border-zinc-500'}`} />
+                  ) : (
+                    <div className={`w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-white border transition-all duration-300 ${currentView === 'settings' ? 'border-[#5100fd]' : 'border-zinc-700 group-hover:border-zinc-500'}`}>
+                      {user?.email?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                  )}
+                </button>
+
+                <button
+                  onClick={handleLogout}
+                  className="text-zinc-500 hover:text-white transition-colors hidden sm:block p-2 hover:bg-zinc-800/50 rounded-full"
+                  title="Log Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
             )}
             {!isLoggedIn && (
               <button
@@ -109,6 +139,7 @@ export function Navbar({ onNavigate, currentView }: NavbarProps) {
                 <button onClick={() => { onNavigate('strategy'); setIsMobileMenuOpen(false); }} className="text-2xl font-light text-white hover:text-[#5100fd]">Strategy</button>
                 <button onClick={() => { onNavigate('feedback'); setIsMobileMenuOpen(false); }} className="text-2xl font-light text-white hover:text-[#5100fd]">Reflect</button>
                 <button onClick={() => { onNavigate('settings'); setIsMobileMenuOpen(false); }} className="text-2xl font-light text-white hover:text-[#5100fd]">Settings</button>
+                <button onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="text-2xl font-light text-zinc-500 hover:text-white">Log Out</button>
               </>
             ) : (
               <>

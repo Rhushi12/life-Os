@@ -7,10 +7,11 @@ import { View } from '../types';
 import { runOrchestration, runDeepResearch } from '../services/geminiService';
 import { Terminal, Database } from 'lucide-react';
 import { ChatInterface } from './ChatInterface';
+import { useAuth } from '../contexts/AuthContext';
 
 const initialAgentStatuses: AgentStatus[] = [
     { name: 'Interviewer', status: 'complete', message: 'Context gathered.' },
-    { name: 'Deep Research (N8n)', status: 'pending', message: 'Waiting for context...' },
+    { name: 'Deep Research Agent', status: 'pending', message: 'Waiting for context...' },
     { name: 'Strategist Agent', status: 'pending', message: 'Mapping milestones & KPIs...' },
     { name: 'Referee Agent', status: 'pending', message: 'Validating feasibility score...' },
 ];
@@ -36,8 +37,8 @@ const AgentProgress: React.FC<{ agents: AgentStatus[]; activeLog: any }> = ({ ag
                 <div className="space-y-4">
                     {agents.map((agent, index) => (
                         <div key={index} className={`flex items-center space-x-4 p-4 rounded-xl border transition-all duration-500 ${agent.status === 'running'
-                                ? 'bg-zinc-900/80 border-[#5100fd]/50 shadow-[0_0_15px_-5px_rgba(81,0,253,0.3)]'
-                                : 'bg-zinc-900/30 border-zinc-800/50'
+                            ? 'bg-zinc-900/80 border-[#5100fd]/50 shadow-[0_0_15px_-5px_rgba(81,0,253,0.3)]'
+                            : 'bg-zinc-900/30 border-zinc-800/50'
                             }`}>
                             <div className="flex-shrink-0">
                                 {agent.status === 'running' && <LoadingSpinnerIcon className="w-5 h-5 text-[#5100fd] animate-spin" />}
@@ -75,9 +76,22 @@ const AgentProgress: React.FC<{ agents: AgentStatus[]; activeLog: any }> = ({ ag
                     {agents.map((agent, i) => agent.result && (
                         <div key={i} className="animate-fade-in">
                             <div className="text-[#5100fd] mb-1"># {agent.name} Output:</div>
-                            <pre className="text-zinc-400 bg-zinc-900/30 p-3 rounded-lg border border-zinc-900 overflow-x-auto whitespace-pre-wrap break-all">
-                                {JSON.stringify(agent.result, null, 2)}
-                            </pre>
+                            {agent.name === 'Deep Research Agent' && agent.result?.report ? (
+                                <div className="text-zinc-400 bg-zinc-900/30 p-4 rounded-lg border border-zinc-900 overflow-x-auto prose prose-invert prose-sm max-w-none">
+                                    {/* Simple Markdown Rendering (Headers, Lists, Bold) */}
+                                    {agent.result.report.split('\n').map((line: string, idx: number) => {
+                                        if (line.startsWith('# ')) return <h1 key={idx} className="text-xl font-bold text-white mb-2 mt-4">{line.replace('# ', '')}</h1>;
+                                        if (line.startsWith('## ')) return <h2 key={idx} className="text-lg font-bold text-white mb-2 mt-4">{line.replace('## ', '')}</h2>;
+                                        if (line.startsWith('### ')) return <h3 key={idx} className="text-md font-bold text-white mb-1 mt-2">{line.replace('### ', '')}</h3>;
+                                        if (line.startsWith('- ')) return <li key={idx} className="ml-4 list-disc">{line.replace('- ', '')}</li>;
+                                        return <p key={idx} className="mb-1 whitespace-pre-wrap">{line}</p>;
+                                    })}
+                                </div>
+                            ) : (
+                                <pre className="text-zinc-400 bg-zinc-900/30 p-3 rounded-lg border border-zinc-900 overflow-x-auto whitespace-pre-wrap break-all">
+                                    {JSON.stringify(agent.result, null, 2)}
+                                </pre>
+                            )}
                         </div>
                     ))}
                     {agents.every(a => a.status === 'pending') && (
@@ -98,9 +112,12 @@ interface GoalIntakeProps {
 }
 
 export default function GoalIntake({ onNavigate, onPlanGenerated }: GoalIntakeProps) {
-    const [mode, setMode] = useState<'interview' | 'processing'>('interview');
+    const { userProfile } = useAuth();
+    const [mode, setMode] = useState<'interview' | 'processing' | 'strategy-review'>('interview');
     const [error, setError] = useState<string | null>(null);
     const [agents, setAgents] = useState<AgentStatus[]>(initialAgentStatuses);
+    const [researchContext, setResearchContext] = useState<ResearchContext | null>(null);
+    const [researchData, setResearchData] = useState<any | null>(null);
 
     const handleStepComplete = (agentName: string, data: any) => {
         setAgents(prev => prev.map(agent => {
@@ -118,36 +135,39 @@ export default function GoalIntake({ onNavigate, onPlanGenerated }: GoalIntakePr
 
     const handleInterviewComplete = async (context: ResearchContext) => {
         setMode('processing');
-        setAgents(prev => prev.map(a => a.name === 'Deep Research (N8n)' ? { ...a, status: 'running' } : a));
+        setResearchContext(context);
+        setAgents(prev => prev.map(a => a.name === 'Deep Research Agent' ? { ...a, status: 'running' } : a));
 
         try {
-            // 1. Deep Research (N8n)
-            const researchData = await runDeepResearch(context);
-            handleStepComplete('Deep Research (N8n)', researchData);
+            // 1. Deep Research Agent (Now returns Strategy too)
+            // Inject User Tier and Profile into context
+            const contextWithExtras = {
+                ...context,
+                userTier: 'Free' as const,
+                userProfile: userProfile || undefined
+            };
+            const data = await runDeepResearch(contextWithExtras);
+            setResearchData(data);
+            handleStepComplete('Deep Research Agent', data);
 
+            // Pause for Strategy Review
+            setMode('strategy-review');
+
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+            setError(`Orchestration Failure: ${errorMessage}`);
+            setAgents(prev => prev.map(agent => agent.status === 'running' ? { ...agent, status: 'error', message: 'Failed' } : agent));
+        }
+    };
+
+    const handleStrategyApproved = async () => {
+        if (!researchContext || !researchData) return;
+        setMode('processing');
+
+        try {
             // 2. Continue Orchestration (Strategist -> Referee)
-            // We need to adapt runOrchestration to accept the research data directly
-            // For now, we'll re-use the existing flow but skip the Researcher step?
-            // Or better, update runOrchestration to accept optional pre-computed research.
-
-            // Let's call runOrchestration but we need to modify it to accept context/research.
-            // Since I can't easily change the signature without breaking other things, 
-            // I will call the agents manually here for this new flow.
-
-            // Strategist
-            // We need to import runStrategist etc. but they are not exported.
-            // Let's just use runOrchestration and pass the goal string, 
-            // BUT runOrchestration runs the Researcher again.
-            // I should update runOrchestration to handle this.
-
-            // For this task, I will just call runOrchestration with the goal from context.
-            // It will re-run the "Researcher" (Gemini) which is redundant but safe for now.
-            // Ideally, I should refactor runOrchestration.
-
-            // Let's do a quick refactor of runOrchestration in the next step if needed.
-            // For now, let's just call it.
-
-            const finalPlan = await runOrchestration(context.goal, handleStepComplete);
+            // Pass the REAL research data (including the N8n strategy) to the orchestrator
+            const finalPlan = await runOrchestration(researchContext.goal, handleStepComplete, researchData);
 
             // Ensure all agents marked complete
             setAgents(prev => prev.map(agent => ({ ...agent, status: 'complete' })));
@@ -185,7 +205,51 @@ export default function GoalIntake({ onNavigate, onPlanGenerated }: GoalIntakePr
                                 I'll ask a few questions to understand your constraints and preferences.
                             </p>
                         </div>
-                        <ChatInterface onComplete={handleInterviewComplete} />
+                        <ChatInterface onComplete={handleInterviewComplete} userProfile={userProfile} />
+                    </div>
+                ) : mode === 'strategy-review' ? (
+                    <div className="w-full animate-fade-in">
+                        <div className="text-center mb-8">
+                            <h2 className="text-3xl font-light text-white mb-2">Strategy Proposal</h2>
+                            <p className="text-zinc-400">Review the AI-generated strategy before we break it down.</p>
+                        </div>
+
+                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 mb-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                            {researchData?.initialStrategy ? (
+                                <div className="space-y-6">
+                                    {researchData.initialStrategy.phases?.map((phase: any, idx: number) => (
+                                        <div key={idx} className="bg-zinc-950/50 p-4 rounded-xl border border-zinc-800/50">
+                                            <h3 className="text-lg font-medium text-[#5100fd] mb-1">{phase.name}</h3>
+                                            <div className="text-xs text-zinc-500 uppercase tracking-wider mb-2">{phase.duration}</div>
+                                            <p className="text-zinc-300 text-sm">{phase.description}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-zinc-500 italic">
+                                    No structured strategy returned. Please review the research report below.
+                                    <div className="mt-4 p-4 bg-zinc-950 rounded-lg text-xs font-mono text-zinc-400 whitespace-pre-wrap">
+                                        {researchData?.report}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex justify-center gap-4">
+                            <button
+                                onClick={() => setMode('interview')} // Ideally this would go back to a "refine" state, but for now reset or maybe add a chat loop later
+                                className="px-6 py-3 rounded-xl border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors"
+                            >
+                                Reject / Retry
+                            </button>
+                            <button
+                                onClick={handleStrategyApproved}
+                                className="px-6 py-3 rounded-xl bg-[#5100fd] hover:bg-[#6610ff] text-white font-medium transition-colors flex items-center gap-2"
+                            >
+                                <CheckCircleIcon className="w-5 h-5" />
+                                Approve Strategy
+                            </button>
+                        </div>
                     </div>
                 ) : (
                     <div className="w-full flex flex-col items-center justify-center min-h-[50vh]">
