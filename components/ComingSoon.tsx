@@ -113,13 +113,13 @@ const ComingSoon: React.FC = () => {
                 </div>
 
                 <h1 className="text-4xl md:text-6xl lg:text-8xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40 leading-[1.1] mb-6 md:mb-8 px-4 text-center">
-                    Architect Your <br />
-                    <span className="bg-gradient-to-r from-[#5100fd] to-purple-400 bg-clip-text text-transparent">Future Self</span>
+                    Your Life, <br />
+                    <span className="bg-gradient-to-r from-[#5100fd] to-purple-400 bg-clip-text text-transparent">Engineered.</span>
                 </h1>
 
                 <p className="text-base md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed font-light mb-10 md:mb-14 px-6 text-center">
-                    The ultimate autonomous goal planner is currently in private beta.
-                    We are crafting an experience that will redefine how you achieve your ambitions.
+                    The world's first autonomous life operating system.
+                    Experience the future of achievement before anyone else.
                 </p>
 
                 {/* Countdown Timer */}
