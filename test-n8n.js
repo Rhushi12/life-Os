@@ -1,4 +1,4 @@
-import fetch from 'node-fetch'; // Or native fetch if Node 18+
+// import fetch from 'node-fetch'; // Native fetch used (Node 18+)
 
 const WEBHOOK_URL = "https://n8n-63lu.onrender.com/webhook-test/b7f2b640-9a16-4fca-9c73-74ee427f4606";
 

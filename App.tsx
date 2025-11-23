@@ -15,6 +15,7 @@ import OnboardingModal from './components/OnboardingModal';
 import { View, Plan } from './types';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { MOCK_PLAN } from './mockData';
+import ComingSoon from './components/ComingSoon';
 
 const AppRoutes: React.FC = () => {
     const { user, userProfile, activeGoal, activateGoal, loading } = useAuth();
@@ -31,6 +32,10 @@ const AppRoutes: React.FC = () => {
             case 'dashboard': navigate('/dashboard'); break;
             case 'goal-intake': navigate('/goal-intake'); break;
             case 'goal-detail': navigate('/goal-detail'); break;
+            case 'planner': navigate('/planner'); break;
+            case 'strategy': navigate('/strategy'); break;
+            case 'feedback': navigate('/reflect'); break;
+            case 'settings': navigate('/settings'); break;
             default: navigate('/');
         }
         window.scrollTo(0, 0);
@@ -104,6 +109,26 @@ const AppRoutes: React.FC = () => {
                     )
                 } />
 
+                <Route path="/planner" element={
+                    activeGoal ? (
+                        <Planner plan={activeGoal} onNavigate={handleNavigate} />
+                    ) : (
+                        <Navigate to="/dashboard" />
+                    )
+                } />
+
+                <Route path="/strategy" element={
+                    activeGoal ? (
+                        <Strategy plan={activeGoal} onNavigate={handleNavigate} />
+                    ) : (
+                        <Navigate to="/dashboard" />
+                    )
+                } />
+
+                <Route path="/reflect" element={<Feedback onNavigate={handleNavigate} />} />
+
+                <Route path="/settings" element={<Settings onNavigate={handleNavigate} />} />
+
                 {/* Catch-all redirect */}
                 <Route path="*" element={<Navigate to="/" />} />
             </Routes>
@@ -112,6 +137,43 @@ const AppRoutes: React.FC = () => {
 };
 
 const App: React.FC = () => {
+    const [showComingSoon, setShowComingSoon] = useState(true);
+
+    useEffect(() => {
+        const checkAccess = () => {
+            // 1. Check for bypass query param
+            const params = new URLSearchParams(window.location.search);
+            const isPreview = params.get('preview') === 'true';
+
+            // 2. Check for stored access token
+            const hasAccess = localStorage.getItem('site_access_granted') === 'true';
+
+            // 3. Check date
+            const launchDate = new Date('2025-12-31T00:00:00');
+            const now = new Date();
+            const isPreLaunch = now < launchDate;
+
+            if (isPreview) {
+                localStorage.setItem('site_access_granted', 'true');
+                setShowComingSoon(false);
+                // Optional: Clean up URL
+                window.history.replaceState({}, '', window.location.pathname);
+            } else if (hasAccess) {
+                setShowComingSoon(false);
+            } else if (!isPreLaunch) {
+                setShowComingSoon(false);
+            } else {
+                setShowComingSoon(true);
+            }
+        };
+
+        checkAccess();
+    }, []);
+
+    if (showComingSoon) {
+        return <ComingSoon />;
+    }
+
     return (
         <AuthProvider>
             <Router>
