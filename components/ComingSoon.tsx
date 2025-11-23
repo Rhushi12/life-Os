@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowRight, Check, Loader2 } from 'lucide-react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { ArrowRight, Check, Loader2, ChevronDown, Brain, Zap, BarChart3 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { LogoIcon } from './icons';
@@ -16,8 +16,12 @@ const ComingSoon: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [error, setError] = useState('');
+    const { scrollYProgress } = useScroll();
+    const opacity = useTransform(scrollYProgress, [0.2, 0.8], [1, 0]);
+    const scale = useTransform(scrollYProgress, [0.2, 0.8], [1, 0.95]);
 
     useEffect(() => {
+        document.title = "Life OS - Coming Soon";
         const calculateTimeLeft = () => {
             const launchDate = new Date('2025-12-31T00:00:00');
             const now = new Date();
@@ -37,10 +41,6 @@ const ComingSoon: React.FC = () => {
         calculateTimeLeft();
 
         return () => clearInterval(timer);
-    }, []);
-
-    useEffect(() => {
-        document.title = "Life OS - Coming Soon";
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -66,25 +66,44 @@ const ComingSoon: React.FC = () => {
         }
     };
 
+    const features = [
+        {
+            icon: Brain,
+            title: "Autonomous Intelligence",
+            description: "Agents that research, plan, and adapt your schedule while you sleep."
+        },
+        {
+            icon: Zap,
+            title: "Adaptive Execution",
+            description: "A dynamic system that evolves with your real-time progress and energy levels."
+        },
+        {
+            icon: BarChart3,
+            title: "Deep Insights",
+            description: "Data-driven analytics that reveal the hidden patterns of your productivity."
+        }
+    ];
+
     return (
-        <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden selection:bg-purple-500/30">
+        <div className="min-h-screen bg-black text-white overflow-x-hidden selection:bg-purple-500/30">
             {/* Background Effects */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
                 <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '4s' }} />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-900/20 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '5s' }} />
                 <div className="absolute top-[20%] right-[20%] w-[30%] h-[30%] bg-indigo-500/10 rounded-full blur-[100px]" />
+
+                {/* Foggy Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/80 z-0" />
+                <div className="absolute bottom-0 left-0 right-0 h-[60vh] bg-gradient-to-t from-[#5100fd]/10 via-purple-900/5 to-transparent blur-[100px]" />
+
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-soft-light"></div>
             </div>
 
-            {/* Grid Pattern Overlay */}
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
-
+            {/* Hero Section */}
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-                className="z-10 text-center max-w-4xl mx-auto w-full flex flex-col items-center"
+                style={{ opacity, scale }}
+                className="relative z-10 min-h-screen flex flex-col items-center justify-center p-4 md:p-8"
             >
-                {/* Logo/Brand Area */}
                 <div className="flex flex-col items-center justify-center gap-6 mb-10 md:mb-12">
                     <div className="relative group cursor-default">
                         <div className="absolute -inset-4 bg-purple-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
@@ -93,12 +112,12 @@ const ComingSoon: React.FC = () => {
                     <span className="text-sm md:text-base font-medium tracking-[0.3em] text-white/50 uppercase">Life OS</span>
                 </div>
 
-                <h1 className="text-4xl md:text-6xl lg:text-8xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40 leading-[1.1] mb-6 md:mb-8 px-4">
+                <h1 className="text-4xl md:text-6xl lg:text-8xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40 leading-[1.1] mb-6 md:mb-8 px-4 text-center">
                     Architect Your <br />
                     <span className="bg-gradient-to-r from-[#5100fd] to-purple-400 bg-clip-text text-transparent">Future Self</span>
                 </h1>
 
-                <p className="text-base md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed font-light mb-10 md:mb-14 px-6">
+                <p className="text-base md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed font-light mb-10 md:mb-14 px-6 text-center">
                     The ultimate autonomous goal planner is currently in private beta.
                     We are crafting an experience that will redefine how you achieve your ambitions.
                 </p>
@@ -123,7 +142,7 @@ const ComingSoon: React.FC = () => {
                 </div>
 
                 {/* Notify Form */}
-                <div className="max-w-md mx-auto w-full relative group px-4">
+                <div className="max-w-md mx-auto w-full relative group px-4 mb-24">
                     {submitted ? (
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
@@ -164,10 +183,67 @@ const ComingSoon: React.FC = () => {
                     )}
                 </div>
 
-                <div className="mt-16 md:mt-24 text-xs md:text-sm text-zinc-600 font-medium tracking-[0.2em]">
-                    <p>LAUNCHING DECEMBER 31ST, 2025</p>
-                </div>
+                <motion.div
+                    animate={{ y: [0, 10, 0] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute bottom-8 left-1/2 -translate-x-1/2 text-zinc-500 flex flex-col items-center gap-2 cursor-pointer"
+                    onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
+                >
+                    <span className="text-xs tracking-[0.2em] uppercase">Explore</span>
+                    <ChevronDown className="w-4 h-4" />
+                </motion.div>
             </motion.div>
+
+            {/* Vision Section */}
+            <div className="relative z-10 bg-black min-h-screen flex items-center py-24 px-4 md:px-8">
+                <div className="max-w-6xl mx-auto w-full">
+                    <motion.div
+                        initial={{ opacity: 0, y: 50 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.8 }}
+                        className="text-center mb-20"
+                    >
+                        <h2 className="text-3xl md:text-5xl font-bold mb-6">Beyond Traditional Planning</h2>
+                        <p className="text-zinc-400 max-w-2xl mx-auto text-lg">
+                            We are building a system that understands you better than you understand yourself.
+                        </p>
+                    </motion.div>
+
+                    <div className="grid md:grid-cols-3 gap-8">
+                        {features.map((feature, index) => (
+                            <motion.div
+                                key={index}
+                                initial={{ opacity: 0, y: 30 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true, margin: "-50px" }}
+                                transition={{ duration: 0.5, delay: index * 0.2 }}
+                                className="bg-zinc-900/30 border border-white/5 p-8 rounded-3xl backdrop-blur-sm hover:bg-zinc-900/50 transition-colors group"
+                            >
+                                <div className="w-12 h-12 bg-[#5100fd]/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                                    <feature.icon className="w-6 h-6 text-[#5100fd]" />
+                                </div>
+                                <h3 className="text-xl font-bold mb-3 text-white">{feature.title}</h3>
+                                <p className="text-zinc-400 leading-relaxed">
+                                    {feature.description}
+                                </p>
+                            </motion.div>
+                        ))}
+                    </div>
+
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.8, duration: 1 }}
+                        className="mt-32 text-center"
+                    >
+                        <p className="text-sm text-zinc-600 font-medium tracking-[0.2em]">
+                            LAUNCHING DECEMBER 31ST, 2025
+                        </p>
+                    </motion.div>
+                </div>
+            </div>
         </div>
     );
 };
