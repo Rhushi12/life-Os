@@ -1,287 +1,381 @@
-                380,
-                480
-            ],
+{
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "goal-intake",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "webhook-trigger",
+            "name": "Webhook (React)",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
             "position": [
-                600,
-                480
-            ],
-            "typeVersion": 1.5
+                0,
+                0
+            ]
         },
         {
             "parameters": {
-                "model": "google/gemini-2.0-flash-001",
+                "model": "google/gemini-flash-1.5",
+                "prompt": "={{ 'Analyze this transcript:\\n\\n' + $json.body.interview_transcript + '\\n\\nOutput specific JSON persona.' }}",
+                "options": {
+                    "responseFormat": "json_object"
+                }
+            },
+            "id": "persona-extractor",
+            "name": "Persona Extractor",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                220,
+                0
+            ],
+            "notes": "Extracts Age, Context, 'Why' from transcript"
+        },
+        {
+            "parameters": {
+                "dataType": "string",
+                "value1": "={{ $('Webhook (React)').item.json.body.tier }}",
+                "rules": {
+                    "rules": [
+                        {
+                            "value2": "student_99"
+                        },
+                        {
+                            "value2": "pro_sub",
+                            "output": 1
+                        }
+                    ]
+                }
+            },
+            "id": "tier-switch",
+            "name": "Tier Switch",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 1,
+            "position": [
+                440,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT * FROM golden_plans ORDER BY embedding <-> $1 LIMIT 1;",
                 "options": {}
             },
-            "id": "llm-model",
-            "name": "Google Gemini 2.0 Flash",
-            "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
-            "position": [
-                680,
-                700
-            ],
+            "id": "supabase-cache",
+            "name": "Check Golden Cache",
+            "type": "n8n-nodes-base.postgres",
             "typeVersion": 1,
-            "credentials": {
-                "openRouterApi": {
-                    "url": "https://google.serper.dev/search",
-                    "sendHeaders": true,
-                    "headerParameters": {
-                        "parameters": [
-                            {
-                                "name": "X-API-KEY",
-                                "value": "={{ $credentials.SerperApi.apiKey }}"
-                            },
-                            {
-                                "name": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ]
-                    },
-                    "sendBody": true,
-                    "bodyParameters": {
-                        "parameters": [
-                            {
-                                "name": "q",
-                                "value": "={{ $json.query }}"
-                            }
-                        ]
-                    },
-                    "options": {}
-                },
-                "id": "serper-request",
-                "name": "Google_ai_mode search",
-                "type": "n8n-nodes-base.httpRequest",
-                "position": [
-                    1180,
-                    1400,
-                    480
-                ],
-                "typeVersion": 2
+            "position": [
+                700,
+                -100
+            ]
+        },
+        {
+            "parameters": {
+                "model": "google/gemini-flash-1.5",
+                "prompt": "={{ 'We have a cached plan. \\nUser Profile: ' + JSON.stringify($('Persona Extractor').item.json) + '\\n\\nIs the cached plan relevant for this SPECIFIC profile? JSON: { \"valid\": true/false }' }}"
             },
-            {
-                "parameters": {
-                    "url": "={{ $json.url }}",
-                    "options": {
-                        "response": {
-                            "response": {
-                                "responseFormat": "text"
-                            }
-                        }
-                    }
-                },
-                "id": "scrape-html",
-                "name": "Scrape Webpage",
-                "type": "n8n-nodes-base.httpRequest",
-                "position": [
-                    1620,
-                    480
-                ],
-                "typeVersion": 4.2,
-                "onError": "continueRegularOutput"
-            },
-            {
-                "parameters": {
-                    "operation": "extractHtmlContent",
-                    "dataPropertyName": "webpage_content",
-                    "extractionValues": {
-                        "values": [
-                            {
-                                "key": "text",
-                                "cssSelector": "body",
-                                "returnArray": false,
-                                "htmlEntityDecode": true
-                            }
-                        ]
-                    },
-                    "options": {
-                        "trimValues": true
-                    }
-                },
-                "id": "extract-text",
-                "name": "Extract Text",
-                "type": "n8n-nodes-base.html",
-                "position": [
-                    1840,
-                    480
-                ],
-                "typeVersion": 1.2
-            },
-            {
-                "parameters": {
-                    "promptType": "define",
-                    "text": "=Webpage Content:\n{{ $json.webpage_content.text.slice(0, 15000) }}\n\nUser Goal:\n{{ $('Chat Message Trigger').item.json.body.goal }}\n\nExtract specific, official data relevant to the goal (e.g., Syllabi, Exam Patterns, Prerequisites, Deadlines). Ignore generic info.",
-                    "options": {
-                        "systemMessage": "You are a data extraction specialist. Return a concise summary of the OFFICIAL facts found."
-                    }
-                },
-                "id": "extract-info",
-                "name": "Extract Info",
-                "type": "@n8n/n8n-nodes-langchain.chainLlm",
-                "position": [
-                    2060,
-                    480
-                ],
-                "typeVersion": 1.5
-            },
-            {
-                "parameters": {
-                    "promptType": "define",
-                    "text": "=All Gathered Info:\n{{ $('Extract Info').all().map(i => i.json.output).join('\\n\\n') }}\n\nGenerate a comprehensive Markdown report.",
-                    "options": {
-                        "systemMessage": "You are a research analyst. Write a detailed report in Markdown."
-                    }
-                },
-                "id": "write-report",
-                "name": "Write Report",
-                "type": "@n8n/n8n-nodes-langchain.agent",
-                "position": [
-                    2280,
-                    480
-                ],
-                "typeVersion": 1.7
-            },
-            {
-                "parameters": {
-                    "promptType": "define",
-                    "text": "=Research Report:\n{{ $json.output }}\n\nRaw Extracted Data:\n{{ $('Extract Info').all().map(i => i.json.output).join('\\n\\n') }}\n\nUser Goal:\n{{ $('Chat Message Trigger').item.json.body.goal }}\n\nSearch Queries Used:\n{{ $('Generate Search Queries').all().map(i => i.json.query).join(', ') }}\n\nACT AS A SYNTHESIZER.\nYour goal is to take the Research Report and Raw Data and synthesize a Concrete Execution Plan.\n\nReturn a JSON object with this EXACT structure:\n{\n  \"report\": \"<The full markdown report>\",\n  \"research_data\": \"<Concise summary of raw facts/syllabi found>\",\n  \"strategy\": {\n    \"strategyRationale\": \"<Why this approach?>\",\n    \"milestones\": [\n      {\n        \"id\": \"m-1\",\n        \"title\": \"<Milestone Title>\",\n        \"kpi\": \"<Success Metric>\",\n        \"estimatedHours\": <number>,\n        \"tasks\": [\n          {\n            \"id\": \"t-1-1\",\n            \"title\": \"<Task Title>\",\n            \"description\": \"<Actionable Description>\",\n            \"durationMinutes\": <number>\n          }\n        ]\n      }\n    ]\n  }\n}",
-                    "options": {
-                        "systemMessage": "You are a Master Planner. You output structured JSON with Milestones and Tasks."
-                    }
-                },
-                "id": "synthesizer-agent",
-                "name": "Synthesizer Agent",
-                "type": "@n8n/n8n-nodes-langchain.agent",
-                "position": [
-                    2500,
-                    480
-                ],
-                "typeVersion": 1.7
-            }
-        ],
-        "connections": {
-            "Chat Message Trigger": {
-                "main": [
-                    [
+            "id": "ai-monitor",
+            "name": "AI Cache Monitor",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                900,
+                -100
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
                         {
-                            "node": "Generate Search Queries",
-                            "type": "main",
-                            "index": 0
+                            "value1": "={{ $json.valid }}",
+                            "value2": true
                         }
                     ]
-                ]
+                }
             },
-            "Google Gemini 2.0 Flash": {
-                "ai_languageModel": [
-                    [
+            "id": "cache-valid-switch",
+            "name": "Cache Good?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1100,
+                -100
+            ]
+        },
+        {
+            "parameters": {
+                "prompt": "={{ 'User Profile: ' + JSON.stringify($('Persona Extractor').item.json) + '\\n\\nExisting Plan: ' + $json.plan_content + '\\n\\nRewrite the plan introduction and task descriptions to match the user\\'s persona and motivation. Keep the technical steps same.' }}"
+            },
+            "id": "personalizer",
+            "name": "Personalizer (Flash)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1320,
+                -180
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://api.tavily.com/search",
+                "method": "POST",
+                "bodyParameters": {
+                    "parameters": [
                         {
-                            "node": "Generate Search Queries",
-                            "type": "ai_languageModel",
-                            "index": 0
+                            "name": "query",
+                            "value": "={{ $('Webhook (React)').item.json.body.goal_summary + ' ' + $('Persona Extractor').item.json.demographics }}"
                         },
                         {
-                            "node": "Extract Info",
-                            "type": "ai_languageModel",
-                            "index": 0
-                        },
-                        {
-                            "node": "Write Report",
-                            "type": "ai_languageModel",
-                            "index": 0
-                        },
-                        {
-                            "node": "Synthesizer Agent",
-                            "type": "ai_languageModel",
-                            "index": 0
+                            "name": "search_depth",
+                            "value": "advanced"
                         }
                     ]
-                ]
+                }
             },
-            "Generate Search Queries": {
-                "main": [
-                    [
-                        {
-                            "node": "Parse Queries",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
+            "id": "deep-research",
+            "name": "Deep Research (Tavily)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                900,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "prompt": "={{ 'User Profile: ' + JSON.stringify($('Persona Extractor').item.json) + '\\n\\nResearch: ' + $json.results + '\\n\\nBuild a detailed Strategy JSON.' }}"
             },
-            "Parse Queries": {
-                "main": [
-                    [
+            "id": "strategist",
+            "name": "Strategist (GPT-4o)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1100,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
                         {
-                            "node": "Google_ai_mode search",
-                            "type": "main",
-                            "index": 0
+                            "value1": "={{ $('Webhook (React)').item.json.body.tier }}",
+                            "value2": "pro_sub"
                         }
                     ]
-                ]
+                }
             },
-            "Google_ai_mode search": {
-                "main": [
-                    [
-                        {
-                            "node": "Format Results",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
+            "id": "check-pro",
+            "name": "Is Pro?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1300,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "prompt": "You are 3 Referees. Vote on this plan."
             },
-            "Format Results": {
-                "main": [
-                    [
-                        {
-                            "node": "Scrape Webpage",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
+            "id": "referee-loop",
+            "name": "Referee Loop",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1520,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO plans (user_id, plan_json, persona_snapshot) VALUES ($1, $2, $3);",
+                "options": {}
             },
-            "Scrape Webpage": {
-                "main": [
-                    [
-                        {
-                            "node": "Extract Text",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
-                ]
+            "id": "save-db",
+            "name": "Save to DB",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                1800,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ $json }}"
             },
-            "Extract Text": {
-                "main": [
-                    [
-                        {
-                            "node": "Extract Info",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
+            "id": "respond-frontend",
+            "name": "Respond to React",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                2000,
+                0
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook (React)": {
+            "main": [
+                [
+                    {
+                        "node": "Persona Extractor",
+                        "type": "main",
+                        "index": 0
+                    }
                 ]
-            },
-            "Extract Info": {
-                "main": [
-                    [
-                        {
-                            "node": "Write Report",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
+            ]
+        },
+        "Persona Extractor": {
+            "main": [
+                [
+                    {
+                        "node": "Tier Switch",
+                        "type": "main",
+                        "index": 0
+                    }
                 ]
-            },
-            "Write Report": {
-                "main": [
-                    [
-                        {
-                            "node": "Synthesizer Agent",
-                            "type": "main",
-                            "index": 0
-                        }
-                    ]
+            ]
+        },
+        "Tier Switch": {
+            "main": [
+                [
+                    {
+                        "node": "Check Golden Cache",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Deep Research (Tavily)",
+                        "type": "main",
+                        "index": 0
+                    }
                 ]
-            }
+            ]
+        },
+        "Check Golden Cache": {
+            "main": [
+                [
+                    {
+                        "node": "AI Cache Monitor",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Cache Monitor": {
+            "main": [
+                [
+                    {
+                        "node": "Cache Good?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Cache Good?": {
+            "main": [
+                [
+                    {
+                        "node": "Personalizer (Flash)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Deep Research (Tavily)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Personalizer (Flash)": {
+            "main": [
+                [
+                    {
+                        "node": "Save to DB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Deep Research (Tavily)": {
+            "main": [
+                [
+                    {
+                        "node": "Strategist (GPT-4o)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Strategist (GPT-4o)": {
+            "main": [
+                [
+                    {
+                        "node": "Check Pro",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Pro": {
+            "main": [
+                [
+                    {
+                        "node": "Referee Loop",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Save to DB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Referee Loop": {
+            "main": [
+                [
+                    {
+                        "node": "Save to DB",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Save to DB": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to React",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
         }
     }
+}

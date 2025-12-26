@@ -23,7 +23,7 @@ const ComingSoon: React.FC = () => {
     useEffect(() => {
         document.title = "Life OS - Coming Soon";
         const calculateTimeLeft = () => {
-            const launchDate = new Date('2025-12-31T00:00:00');
+            const launchDate = new Date('2026-02-01T00:00:00');
             const now = new Date();
             const difference = launchDate.getTime() - now.getTime();
 

@@ -149,7 +149,7 @@ const App: React.FC = () => {
             const hasAccess = localStorage.getItem('site_access_granted') === 'true';
 
             // 3. Check date
-            const launchDate = new Date('2025-12-31T00:00:00');
+            const launchDate = new Date('2026-02-01T00:00:00');
             const now = new Date();
             const isPreLaunch = now < launchDate;
 
